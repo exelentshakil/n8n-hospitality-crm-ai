@@ -20,6 +20,27 @@ function formatSpecialRequests(specialRequests: unknown): string {
   return list.join("; ");
 }
 
+export function cleanMarkdownFromText(text: string): string {
+  if (!text) return "";
+  return text
+    // Replace markdown links [Label](#) or [Label](url) with clean readable text
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, label, url) => {
+      if (url === "#" || url.startsWith("#") || url.toLowerCase().includes("schedule")) {
+        return `${label}: https://reservations.mountain-reserve-estates.ca/concierge/walkthrough`;
+      }
+      return `${label} (${url})`;
+    })
+    // Remove bold/italic markdown asterisks: **text** -> text, *text* -> text
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    // Replace bullet points like "- **Label:** text" with clean prose bullet
+    .replace(/^[ \t]*[-*][ \t]+/gm, "• ")
+    // Clean headers like "### Heading" -> "Heading"
+    .replace(/^[ \t]*#{1,6}[ \t]+/gm, "")
+    // Normalize excessive newlines
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 export async function generateHospitalityProposal(
   lead: GuestLead,
   quote: HospitalityQuote
@@ -32,29 +53,38 @@ export async function generateHospitalityProposal(
   const estimatedBudgetStr = (lead.estimatedBudget || 0).toLocaleString();
 
   const systemPrompt = `You are Claire St-Laurent, Executive Director of Luxury Sales & Guest Experience at The Reserve Alpine Resort & Conference Estates (Banff / Lake Louise / Whistler, Canada).
-You are an expert hospitality executive. A new high-value group lead has just entered the venue CRM.
-Your objective is to generate an immediate, compelling executive email and customized hospitality proposal that makes the client feel valued and books the venue.
+You are an expert luxury hospitality executive. A high-value group lead has just entered the venue CRM.
+Your objective is to generate an immediate, compelling, bespoke executive email and customized hospitality proposal that makes the client feel deeply valued and books the venue.
 
-STRICT GUIDELINES:
-1. Tone: Warm, poised, ultra-professional, and bespoke luxury hospitality.
-2. Address the guest personally by name (${lead.guestName}) and reference their company or occasion (${lead.company || "private gathering"}).
-3. Reference the exact approved venue figures without altering them:
-   - Location: ${lead.venueLocation}
-   - Dates: ${lead.checkInDate} to ${lead.checkOutDate} (${quote.nights} nights)
-   - Party: ${lead.headcount} guests
-   - Suites: ${quote.suiteCount}x ${suiteInfo.name} ($${quote.roomSubtotal.toLocaleString()} CAD)
-   - Catering: ${cateringInfo.name} ($${quote.cateringSubtotal.toLocaleString()} CAD)
-   - Grand Total: $${quote.grandTotal.toLocaleString()} CAD (including 18% service and 13% HST)
-   - Advance Deposit to hold dates: $${quote.depositRequired.toLocaleString()} CAD
-4. Highlight their special requests: ${specialRequestsStr}.
-5. DO NOT invent fake extra fees. Lock to the numbers provided.
-6. Return ONLY a valid JSON object with this exact schema:
+STRICT COPYWRITING RULES FOR emailBody:
+1. Tone: Warm, poised, articulate, and bespoke luxury hospitality (caliber of Four Seasons, Aman, or Ritz-Carlton Reserve).
+2. ABSOLUTELY NO RAW MARKDOWN SYNTAX in emailBody:
+   - NEVER use asterisks (do NOT use **bold** or *italic*).
+   - NEVER use markdown bullet characters (- or * or #).
+   - NEVER use raw markdown links like [Schedule a Call](#).
+   - Write in flowing, elegant, fully articulated prose paragraphs separated by clean double line-breaks.
+3. Specific Narrative Structure for emailBody:
+   - Salutation: "Dear ${lead.guestName},"
+   - Opening: Gracious personal acknowledgment of their inquiry for ${lead.company || "their gathering"} at ${lead.venueLocation} from ${lead.checkInDate} to ${lead.checkOutDate}.
+   - Accommodations & Culinary: Detail holding ${quote.suiteCount} private ${suiteInfo.name} suites for their party of ${lead.headcount} guests, paired with ${cateringInfo.name}.
+   - Special Logistics: Seamlessly address their exact requests (${specialRequestsStr}) with executive concierge assurance.
+   - Investment Locking: State the comprehensive hosting investment of $${quote.grandTotal.toLocaleString()} CAD (inclusive of 18% master service gratuity and 13% HST) and the 30% advance deposit ($${quote.depositRequired.toLocaleString()} CAD) required to secure the estate hold.
+   - Walkthrough Invitation: Explicitly provide the direct concierge walkthrough link: https://reservations.mountain-reserve-estates.ca/concierge/walkthrough
+   - Formal Sign-off:
+Warmest regards,
+
+Claire St-Laurent
+Executive Director of Luxury Sales & Guest Experience
+The Reserve Alpine Resort & Estates • reservations@mountain-reserve-estates.ca
+Direct Concierge Desk: +1 (403) 555-0199
+
+4. Return ONLY a valid JSON object with this exact schema:
 {
-  "emailSubject": "Compelling subject line with guest name and resort estate",
-  "emailBody": "Full formatted email body with greeting, tailored narrative, value highlights, and next step with scheduling link.",
+  "emailSubject": "Compelling luxury subject line with guest name and resort estate",
+  "emailBody": "Full articulated prose email body adhering strictly to the copywriting rules above.",
   "proposalTitle": "Formal executive proposal headline",
   "executiveSummary": "2-3 sentence executive summary of the bespoke hosting arrangement.",
-  "tailoredHighlights": ["4 specific bullet points addressing their party size, suites, dining, and custom amenities"],
+  "tailoredHighlights": ["4 specific bullet points addressing party size, suites, dining, and custom amenities"],
   "amenityPerks": ["3 complimentary luxury perks offered, e.g., private sommelier cellar tour, priority helipad transfer, dedicated estate butler"],
   "itineraryOverview": "Overview of the arrival, curated agenda, and departure schedule."
 }`;
@@ -103,7 +133,7 @@ Venue: ${lead.venueLocation}`;
           const parsed = JSON.parse(content) as AiRawResponse;
           return {
             emailSubject: parsed.emailSubject,
-            emailBody: parsed.emailBody,
+            emailBody: cleanMarkdownFromText(parsed.emailBody),
             proposalTitle: parsed.proposalTitle,
             executiveSummary: parsed.executiveSummary,
             tailoredHighlights: parsed.tailoredHighlights || [],
@@ -153,7 +183,7 @@ Venue: ${lead.venueLocation}`;
           const parsed = JSON.parse(cleanJson) as AiRawResponse;
           return {
             emailSubject: parsed.emailSubject,
-            emailBody: parsed.emailBody,
+            emailBody: cleanMarkdownFromText(parsed.emailBody),
             proposalTitle: parsed.proposalTitle,
             executiveSummary: parsed.executiveSummary,
             tailoredHighlights: parsed.tailoredHighlights || [],
@@ -183,24 +213,31 @@ export function getDeterministicProposal(
   const suiteInfo = SUITE_RATES[lead.suiteType] || SUITE_RATES.Executive_Suite;
   const cateringInfo = CATERING_RATES[lead.cateringTier] || CATERING_RATES.Artisan_Buffet;
   const specialRequestsStr = formatSpecialRequests(lead.specialRequests);
+  const companyMention = lead.company ? `for ${lead.company}` : "for your private gathering";
 
   return {
-    emailSubject: `Exclusive Hospitality Proposal: ${lead.company || lead.guestName} at ${lead.venueLocation}`,
+    emailSubject: `Exclusive Hospitality Proposal: ${lead.company || lead.guestName} at The Reserve Alpine Estate`,
     emailBody: `Dear ${lead.guestName},
 
-Thank you for contacting The Reserve Alpine Estate regarding your upcoming gathering from ${lead.checkInDate} to ${lead.checkOutDate}.
+Thank you for contacting The Reserve Alpine Estate. It is our distinct pleasure to present this tailored hosting specification ${companyMention} from ${lead.checkInDate} through ${lead.checkOutDate}.
 
-We have reserved a preferred hold on ${quote.suiteCount} ${suiteInfo.name} suites for your party of ${lead.headcount} guests. Our culinary team has prepared a tailored ${cateringInfo.name} service, with full accommodation for your requested preferences.
+We have placed an exclusive priority hold on ${quote.suiteCount} ${suiteInfo.name} suites to accommodate your party of ${lead.headcount} guests in complete comfort and mountain-view privacy. Our culinary director has curated a bespoke ${cateringInfo.name} program, featuring sommelier cellar pairings and customized seasonal menus prepared specifically for your party.
 
-Your comprehensive hosting investment is locked at $${quote.grandTotal.toLocaleString()} CAD (inclusive of our 18% master service gratuity and 13% HST). To confirm these dates and secure the estate wing, a 30% advance deposit of $${quote.depositRequired.toLocaleString()} CAD is required.
+Regarding your requested accommodations, our executive concierge desk has pre-coordinated every logistical detail: ${specialRequestsStr}. Your group will be escorted by dedicated arrival valets and provided with a designated estate liaison available around the clock throughout your ${quote.nights}-night stay.
 
-Please review the complete executive proposal below. You may confirm your reservation directly or schedule a 10-minute walkthrough call with our concierge desk at your convenience.
+Your comprehensive hosting investment is locked at $${quote.grandTotal.toLocaleString()} CAD, which fully includes all private suites, bespoke dining curation, our 18% master service gratuity, and 13% HST. To guarantee these preferred dates and secure the estate wing, a 30% advance deposit of $${quote.depositRequired.toLocaleString()} CAD is required upon confirmation.
+
+To review the master specifications, request tailored culinary adjustments, or schedule a 15-minute executive walkthrough call with our concierge desk at your convenience, please reserve a time directly:
+https://reservations.mountain-reserve-estates.ca/concierge/walkthrough
+
+We look forward to welcoming you and your distinguished guests to an exceptional alpine retreat.
 
 Warmest regards,
 
 Claire St-Laurent
 Executive Director of Luxury Sales & Guest Experience
-The Reserve Alpine Resort & Estates • reservations@mountain-reserve-estates.ca`,
+The Reserve Alpine Resort & Estates • reservations@mountain-reserve-estates.ca
+Direct Liaison Desk: +1 (403) 555-0199`,
     proposalTitle: `Bespoke Hosting & Hospitality Specification — ${lead.company || lead.guestName}`,
     executiveSummary: `An exclusive ${quote.nights}-night private estate package at ${lead.venueLocation} for ${lead.headcount} distinguished guests, featuring dedicated ${suiteInfo.name} accommodations and world-class culinary curation.`,
     tailoredHighlights: [
