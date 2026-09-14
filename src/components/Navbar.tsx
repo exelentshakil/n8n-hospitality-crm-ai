@@ -11,6 +11,10 @@ interface NavbarProps {
 
 export function Navbar({ onOpenExportModal }: NavbarProps) {
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[var(--color-border)] bg-[var(--color-panel)]/90 backdrop-blur-md px-0 py-3">
@@ -70,7 +74,7 @@ export function Navbar({ onOpenExportModal }: NavbarProps) {
             aria-label="Toggle Theme"
             className="p-1.5 rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-subtle)] border border-[var(--color-border)] transition-colors shrink-0 cursor-pointer"
           >
-            {theme === "dark" ? (
+            {mounted && theme === "dark" ? (
               <Sun className="w-4 h-4 text-amber-400" />
             ) : (
               <Moon className="w-4 h-4 text-slate-700" />

@@ -73,7 +73,7 @@ export function calculateHospitalityQuote(lead: GuestLead): HospitalityQuote {
   const depositRequired = Math.round(grandTotal * 0.30); // 30% advance deposit to secure dates
 
   return {
-    quoteId: `Q-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 899 + 100)}`,
+    quoteId: `Q-${lead.id.replace(/\D/g, "") || "84920"}-${lead.guestTier.slice(0, 3).toUpperCase()}`,
     suiteRatePerNight,
     suiteCount,
     nights,
