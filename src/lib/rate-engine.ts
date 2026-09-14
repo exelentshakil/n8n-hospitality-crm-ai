@@ -51,12 +51,13 @@ export function calculateHospitalityQuote(lead: GuestLead): HospitalityQuote {
   const cateringConfig = CATERING_RATES[lead.cateringTier] || CATERING_RATES.Artisan_Buffet;
 
   const suiteRatePerNight = suiteConfig.ratePerNight;
-  const suiteCount = lead.suiteCount > 0 ? lead.suiteCount : Math.max(1, Math.ceil(lead.headcount / 1.5));
-  const nights = Math.max(1, lead.nights);
+  const headcount = Math.max(1, lead.headcount || 1);
+  const suiteCount = (lead.suiteCount && lead.suiteCount > 0) ? lead.suiteCount : Math.max(1, Math.ceil(headcount / 1.5));
+  const nights = Math.max(1, lead.nights || 1);
 
   const roomSubtotal = suiteRatePerNight * suiteCount * nights;
   const cateringPerPerson = cateringConfig.perPersonPerDay;
-  const cateringSubtotal = cateringPerPerson * lead.headcount * nights;
+  const cateringSubtotal = cateringPerPerson * headcount * nights;
 
   const avPackageFee = lead.avRequirement
     ? lead.headcount > 50
@@ -78,7 +79,7 @@ export function calculateHospitalityQuote(lead: GuestLead): HospitalityQuote {
     nights,
     roomSubtotal,
     cateringPerPerson,
-    headcount: lead.headcount,
+    headcount,
     cateringSubtotal,
     avPackageFee,
     subtotalBeforeTax,
@@ -91,7 +92,7 @@ export function calculateHospitalityQuote(lead: GuestLead): HospitalityQuote {
     rateCardVersion: "v2026.4-APPROVED",
     basis: {
       roomBasis: `${suiteCount} suites × $${suiteRatePerNight.toLocaleString()}/nt × ${nights} nights = $${roomSubtotal.toLocaleString()}`,
-      cateringBasis: `${lead.headcount} guests × $${cateringPerPerson}/day × ${nights} days = $${cateringSubtotal.toLocaleString()}`,
+      cateringBasis: `${headcount} guests × $${cateringPerPerson}/day × ${nights} days = $${cateringSubtotal.toLocaleString()}`,
       serviceFeeBasis: `18% on $${subtotalBeforeTax.toLocaleString()} subtotal = $${serviceCharge.toLocaleString()}`,
       taxBasis: `13% HST on $${taxableBase.toLocaleString()} = $${taxAmount.toLocaleString()}`
     }

@@ -19,6 +19,14 @@ export async function generateHospitalityProposal(
   const suiteInfo = SUITE_RATES[lead.suiteType] || SUITE_RATES.Executive_Suite;
   const cateringInfo = CATERING_RATES[lead.cateringTier] || CATERING_RATES.Artisan_Buffet;
 
+  const specialRequestsList = Array.isArray(lead.specialRequests)
+    ? lead.specialRequests
+    : (typeof lead.specialRequests === "string" && (lead.specialRequests as string).trim().length > 0
+      ? [(lead.specialRequests as string).trim()]
+      : ["Dedicated concierge and executive arrival escort"]);
+  const specialRequestsStr = specialRequestsList.join("; ");
+  const estimatedBudgetStr = (lead.estimatedBudget || 0).toLocaleString();
+
   const systemPrompt = `You are Claire St-Laurent, Executive Director of Luxury Sales & Guest Experience at The Reserve Alpine Resort & Conference Estates (Banff / Lake Louise / Whistler, Canada).
 You are an expert hospitality executive. A new high-value group lead has just entered the venue CRM.
 Your objective is to generate an immediate, compelling executive email and customized hospitality proposal that makes the client feel valued and books the venue.
@@ -34,7 +42,7 @@ STRICT GUIDELINES:
    - Catering: ${cateringInfo.name} ($${quote.cateringSubtotal.toLocaleString()} CAD)
    - Grand Total: $${quote.grandTotal.toLocaleString()} CAD (including 18% service and 13% HST)
    - Advance Deposit to hold dates: $${quote.depositRequired.toLocaleString()} CAD
-4. Highlight their special requests: ${lead.specialRequests.join("; ")}.
+4. Highlight their special requests: ${specialRequestsStr}.
 5. DO NOT invent fake extra fees. Lock to the numbers provided.
 6. Return ONLY a valid JSON object with this exact schema:
 {
@@ -58,9 +66,9 @@ Headcount: ${lead.headcount} guests
 Suites: ${quote.suiteCount} ${suiteInfo.name}
 Catering: ${cateringInfo.name}
 AV Required: ${lead.avRequirement ? "Yes (Hybrid 4K Executive Suite)" : "Standard"}
-Budget: $${lead.estimatedBudget.toLocaleString()} CAD
+Budget: $${estimatedBudgetStr} CAD
 Calculated Quote: $${quote.grandTotal.toLocaleString()} CAD (Deposit: $${quote.depositRequired.toLocaleString()} CAD)
-Special Requests: ${lead.specialRequests.join(", ")}
+Special Requests: ${specialRequestsStr}
 Venue: ${lead.venueLocation}`;
 
   // 1. Primary Provider: OpenAI GPT-4o-mini
@@ -196,7 +204,7 @@ The Reserve Alpine Resort & Estates • reservations@mountain-reserve-estates.ca
       lead.avRequirement
         ? "Integrated 4K hybrid board facility with high-bandwidth fiber and dedicated on-site technician."
         : "Private lounge salon with handcrafted timber hearth and executive fireside seating.",
-      `Seamless logistics: ${lead.specialRequests.join(", ")} arranged prior to arrival.`
+      `Seamless logistics: ${specialRequestsStr} arranged prior to arrival.`
     ],
     amenityPerks: [
       "Complimentary private arrival transfer and luggage escort to individual suites.",
