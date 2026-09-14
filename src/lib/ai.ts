@@ -11,6 +11,15 @@ interface AiRawResponse {
   itineraryOverview: string;
 }
 
+function formatSpecialRequests(specialRequests: unknown): string {
+  const list = Array.isArray(specialRequests)
+    ? specialRequests
+    : (typeof specialRequests === "string" && specialRequests.trim().length > 0
+      ? [specialRequests.trim()]
+      : ["Dedicated concierge and executive arrival escort"]);
+  return list.join("; ");
+}
+
 export async function generateHospitalityProposal(
   lead: GuestLead,
   quote: HospitalityQuote
@@ -19,12 +28,7 @@ export async function generateHospitalityProposal(
   const suiteInfo = SUITE_RATES[lead.suiteType] || SUITE_RATES.Executive_Suite;
   const cateringInfo = CATERING_RATES[lead.cateringTier] || CATERING_RATES.Artisan_Buffet;
 
-  const specialRequestsList = Array.isArray(lead.specialRequests)
-    ? lead.specialRequests
-    : (typeof lead.specialRequests === "string" && (lead.specialRequests as string).trim().length > 0
-      ? [(lead.specialRequests as string).trim()]
-      : ["Dedicated concierge and executive arrival escort"]);
-  const specialRequestsStr = specialRequestsList.join("; ");
+  const specialRequestsStr = formatSpecialRequests(lead.specialRequests);
   const estimatedBudgetStr = (lead.estimatedBudget || 0).toLocaleString();
 
   const systemPrompt = `You are Claire St-Laurent, Executive Director of Luxury Sales & Guest Experience at The Reserve Alpine Resort & Conference Estates (Banff / Lake Louise / Whistler, Canada).
@@ -178,6 +182,7 @@ export function getDeterministicProposal(
 ): AiProposalPayload {
   const suiteInfo = SUITE_RATES[lead.suiteType] || SUITE_RATES.Executive_Suite;
   const cateringInfo = CATERING_RATES[lead.cateringTier] || CATERING_RATES.Artisan_Buffet;
+  const specialRequestsStr = formatSpecialRequests(lead.specialRequests);
 
   return {
     emailSubject: `Exclusive Hospitality Proposal: ${lead.company || lead.guestName} at ${lead.venueLocation}`,
